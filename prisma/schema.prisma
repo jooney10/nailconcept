@@ -1,0 +1,174 @@
+// Abigail Nails — booking platform schema.
+//
+// Provider is SQLite for local development so the app runs and seeds with zero
+// external setup. For production on Supabase, switch `provider` to "postgresql"
+// and point DATABASE_URL at the Supabase connection string (see README).
+// The schema deliberately avoids native enums and Postgres-only column types so
+// the exact same models work on both engines. Status/role/message values are
+// plain strings, validated in the app layer via the constants in src/lib/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Singleton row (id = "business") holding brand content and the booking rules
+/// that drive the scheduling engine. Editable from the admin Settings screen.
+model Business {
+  id             String @id @default("business")
+  name           String @default("Abigail Nails")
+  tagline        String @default("Home-based nail studio in Stokenchurch")
+  aboutHeading   String @default("Meet Abigail")
+  aboutBody      String @default("")
+  whatsappNumber String @default("") // E.164 without +, e.g. 447700900123
+  email          String @default("")
+  addressLine    String @default("Stokenchurch, Buckinghamshire")
+  instagram      String @default("abigaillnails")
+
+  // Branding
+  colorPrimary String @default("#c9716b")
+  colorAccent  String @default("#c9a25a")
+
+  // Booking rules (drive availability generation)
+  timezone              String @default("Europe/London")
+  slotIntervalMin       Int    @default(15)
+  bufferBeforeMin       Int    @default(15)
+  bufferAfterMin        Int    @default(15)
+  minNoticeHours        Int    @default(12)
+  maxAdvanceDays        Int    @default(56) // 8 weeks
+  cancellationWindowHrs Int    @default(24)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Login accounts for the admin backend. Role is "OWNER" or "STAFF".
+/// An owner can manage everything (services, staff, settings, all bookings);
+/// staff manage only their own hours and bookings.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STAFF")
+  createdAt    DateTime @default(now())
+
+  technician Technician?
+}
+
+/// A nail technician profile shown to customers and used for scheduling.
+model Technician {
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  bio          String  @default("")
+  photoUrl     String  @default("")
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  services     Service[]      @relation("TechnicianServices")
+  workingHours WorkingHours[]
+  timeOff      TimeOff[]
+  bookings     Booking[]
+
+  createdAt DateTime @default(now())
+}
+
+/// A bookable treatment. Duration drives how long a slot occupies the calendar;
+/// buffers are added on top from the Business rules.
+model Service {
+  id           String  @id @default(cuid())
+  name         String
+  description  String  @default("")
+  durationMin  Int
+  pricePence   Int // stored in pence to avoid float rounding; 0 = "from" / POA
+  priceText    String  @default("") // optional override, e.g. "from £30"
+  category     String  @default("Nails")
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  technicians Technician[] @relation("TechnicianServices")
+  bookings    Booking[]
+
+  createdAt DateTime @default(now())
+}
+
+/// Recurring weekly availability. Times are minutes from midnight (local tz).
+/// Multiple rows per weekday are allowed (e.g. a morning and an afternoon block).
+model WorkingHours {
+  id           String @id @default(cuid())
+  technicianId String
+  weekday      Int // 0 = Sunday ... 6 = Saturday
+  startMinute  Int // e.g. 540 = 09:00
+  endMinute    Int // e.g. 1020 = 17:00
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([technicianId, weekday])
+}
+
+/// One-off blocks that remove availability: holidays, personal time, etc.
+model TimeOff {
+  id           String   @id @default(cuid())
+  technicianId String
+  startAt      DateTime
+  endAt        DateTime
+  reason       String   @default("")
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([technicianId, startAt])
+}
+
+/// A customer appointment. startAt/endAt cover the treatment itself; the buffers
+/// captured here are also enforced against neighbouring bookings by the engine.
+model Booking {
+  id             String   @id @default(cuid())
+  reference      String   @unique // short human code, e.g. "AB-7K2Q"
+  technicianId   String
+  serviceId      String
+  customerName   String
+  customerPhone  String
+  customerEmail  String   @default("")
+  startAt        DateTime
+  endAt          DateTime
+  status         String   @default("CONFIRMED") // CONFIRMED | CANCELLED | COMPLETED | NO_SHOW
+  notes          String   @default("")
+  bufferBeforeMin Int     @default(15)
+  bufferAfterMin  Int     @default(15)
+
+  technician  Technician   @relation(fields: [technicianId], references: [id])
+  service     Service      @relation(fields: [serviceId], references: [id])
+  messages    MessageLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId, startAt])
+  @@index([status, startAt])
+}
+
+/// Every automated message we compose. In stub mode (no WhatsApp API creds) rows
+/// are written with status "STUBBED" so the admin can see exactly what would send.
+model MessageLog {
+  id        String    @id @default(cuid())
+  bookingId String
+  type      String // CONFIRMATION | REMINDER_24H | REVIEW_REQUEST | CANCELLATION
+  channel   String    @default("whatsapp")
+  status    String    @default("STUBBED") // STUBBED | SENT | FAILED | SKIPPED
+  body      String
+  toNumber  String    @default("")
+  error     String    @default("")
+  providerId String   @default("")
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, type])
+}
