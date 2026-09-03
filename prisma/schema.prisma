@@ -1,10 +1,9 @@
 // Abigail Nails — booking platform schema.
 //
-// Provider is SQLite for local development so the app runs and seeds with zero
-// external setup. For production on Supabase, switch `provider` to "postgresql"
-// and point DATABASE_URL at the Supabase connection string (see README).
-// The schema deliberately avoids native enums and Postgres-only column types so
-// the exact same models work on both engines. Status/role/message values are
+// Runs on PostgreSQL (Supabase). DATABASE_URL is the pooled connection used by
+// the app at runtime; DIRECT_URL is the direct connection Prisma uses for schema
+// changes (db push / migrate). See README for the connection strings to use.
+// The schema deliberately avoids native enums so status/role/message values are
 // plain strings, validated in the app layer via the constants in src/lib/enums.ts.
 
 generator client {
@@ -12,8 +11,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection (Supabase transaction pooler, port 6543) used by the app.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) used by Prisma for schema changes / db push.
+  directUrl = env("DIRECT_URL")
 }
 
 /// Singleton row (id = "business") holding brand content and the booking rules

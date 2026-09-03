@@ -58,17 +58,22 @@ roughly £0–5/month at a sole trader's volume.
 # 1. Install
 npm install
 
-# 2. Environment — copy the example and fill AUTH_SECRET at minimum
+# 2. Environment
 cp .env.example .env
-# generate a secret:  openssl rand -base64 32   → paste into AUTH_SECRET
+#   - DATABASE_URL + DIRECT_URL: your Supabase connection strings (see below)
+#   - AUTH_SECRET: openssl rand -base64 32
 
-# 3. Database (SQLite, zero setup) + seed data
-npm run db:migrate      # creates prisma/dev.db and applies migrations
+# 3. Create the schema + seed data on your database
+npm run db:push         # creates all tables from the schema
 npm run db:seed         # placeholder services, 2 technicians, sample bookings
 
 # 4. Run
 npm run dev             # http://localhost:3000
 ```
+
+> The app targets Postgres (Supabase). For local development, point
+> `DATABASE_URL`/`DIRECT_URL` at your Supabase project (or a separate free
+> Supabase project kept for dev).
 
 **Demo admin logins** (from the seed):
 - Owner — `abigail@abigailnails.co.uk` / `abigail123`
@@ -113,26 +118,19 @@ vercel.json                # cron schedule
 
 ## Going live
 
-### 1. Switch the database to Supabase Postgres
+### 1. Create the database on Supabase
 
-1. Create a project at [supabase.com](https://supabase.com) and copy the
-   **connection string** (Project → Settings → Database → Connection string →
-   URI; use the pooled connection on port 6543 for serverless).
-2. In `prisma/schema.prisma`, change the datasource provider:
-   ```prisma
-   datasource db {
-     provider = "postgresql"   // was "sqlite"
-     url      = env("DATABASE_URL")
-   }
-   ```
-3. Set `DATABASE_URL` to the Supabase URI, then:
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **Project Settings → Database → Connection string**, copy both:
+   - **Transaction pooler** (port 6543) → `DATABASE_URL` (add `?pgbouncer=true`)
+   - **Direct connection** (port 5432) → `DIRECT_URL`
+3. Put both in your local `.env`, then create the schema and seed it:
    ```bash
-   npm run db:migrate      # creates the schema on Postgres
-   npm run db:seed         # optional: seed placeholder content
+   npm run db:push         # creates all tables on Supabase
+   npm run db:seed         # placeholder content + admin logins
    ```
 
-The schema is written to work identically on SQLite and Postgres (no native
-enums or engine-specific types), so this is the only code change required.
+Future schema changes: edit `prisma/schema.prisma` and re-run `npm run db:push`.
 
 ### 2. Deploy to Vercel
 
@@ -141,7 +139,8 @@ enums or engine-specific types), so this is the only code change required.
 
    | Variable | Value |
    |----------|-------|
-   | `DATABASE_URL` | Supabase Postgres URI |
+   | `DATABASE_URL` | Supabase pooled URI (6543, `?pgbouncer=true`) |
+   | `DIRECT_URL` | Supabase direct URI (5432) |
    | `AUTH_SECRET` | `openssl rand -base64 32` |
    | `CRON_SECRET` | any long random string |
    | `NEXT_PUBLIC_SITE_URL` | your production URL |

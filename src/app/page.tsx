@@ -11,6 +11,9 @@ import {
   getActiveTechnicians,
 } from "@/lib/business";
 
+// Always render fresh so admin edits (services, About, branding) show immediately.
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const [business, groups, technicians] = await Promise.all([
     getBusiness(),
