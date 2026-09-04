@@ -27,10 +27,18 @@ const DEFAULT_BUSINESS = {
 
 export type BusinessRecord = typeof DEFAULT_BUSINESS;
 
-/** The singleton business config, falling back to defaults if not yet seeded. */
+/**
+ * The singleton business config, falling back to defaults if not yet seeded or
+ * if the database is unreachable (e.g. during a build with no DB connection, or
+ * a transient outage — the root layout renders from this on every page).
+ */
 export async function getBusiness(): Promise<BusinessRecord> {
-  const b = await prisma.business.findUnique({ where: { id: "business" } });
-  return (b as BusinessRecord) ?? DEFAULT_BUSINESS;
+  try {
+    const b = await prisma.business.findUnique({ where: { id: "business" } });
+    return (b as BusinessRecord) ?? DEFAULT_BUSINESS;
+  } catch {
+    return DEFAULT_BUSINESS;
+  }
 }
 
 /** Active services in display order, grouped nothing — raw list. */

@@ -1,89 +1,100 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/admin/session";
+import { prisma } from "@/lib/prisma";
 import { getBusiness } from "@/lib/business";
-import { getDashboardStats, getUpcomingBookings } from "@/lib/admin/queries";
-import { formatShort } from "@/lib/datetime";
+import { getDashboardStats } from "@/lib/admin/queries";
+import { DashboardCalendar } from "@/components/admin/DashboardCalendar";
 
 export const dynamic = "force-dynamic";
+
+const toHHMM = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 export default async function DashboardPage() {
   const user = await requireSession();
   const business = await getBusiness();
-  const [stats, upcoming] = await Promise.all([
-    getDashboardStats(user),
-    getUpcomingBookings(user, 6),
-  ]);
+  const stats = await getDashboardStats(user);
 
-  const stubbedNote = business.whatsappNumber ? "" : "";
-  void stubbedNote;
+  // Scope shading + technician options to the signed-in user.
+  const isOwner = user.role === "OWNER";
+  const hoursScope = isOwner ? {} : { technicianId: user.technicianId ?? "__none__" };
+  const techWhere = isOwner
+    ? { active: true }
+    : { active: true, id: user.technicianId ?? "__none__" };
+  const [workingHours, services, technicians] = await Promise.all([
+    prisma.workingHours.findMany({ where: hoursScope }),
+    prisma.service.findMany({
+      where: { active: true },
+      orderBy: { displayOrder: "asc" },
+      select: { id: true, name: true, durationMin: true },
+    }),
+    prisma.technician.findMany({
+      where: techWhere,
+      orderBy: { displayOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const businessHours = workingHours.map((w) => ({
+    daysOfWeek: [w.weekday],
+    startTime: toHHMM(w.startMinute),
+    endTime: toHHMM(w.endMinute),
+  }));
 
   return (
     <div>
-      <h1 className="text-3xl">Dashboard</h1>
-      <p className="mt-1 text-[var(--grey)]">
-        {user.role === "OWNER" ? "Everything across the studio." : "Your appointments."}
-      </p>
-
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <Stat label="Today" value={stats.todayCount} suffix="appointments" />
-        <Stat label="Next 7 days" value={stats.weekCount} suffix="booked" />
-        <Stat label="Upcoming total" value={stats.upcomingCount} suffix="confirmed" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl">Calendar</h1>
+          <p className="mt-1 text-[var(--grey)]">
+            {user.role === "OWNER" ? "Everything across the studio." : "Your appointments."}{" "}
+            Click a slot to add a booking; drag one to reschedule.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <MiniStat label="Today" value={stats.todayCount} />
+          <MiniStat label="Next 7 days" value={stats.weekCount} />
+          <MiniStat label="Upcoming" value={stats.upcomingCount} />
+        </div>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-xl">Next appointments</h2>
-        <Link
-          href="/admin/bookings"
-          className="text-sm font-bold text-[var(--brand-dark)] hover:text-[var(--brand)]"
-        >
-          View all →
-        </Link>
+      <div className="mt-5">
+        <DashboardCalendar
+          businessHours={businessHours}
+          businessName={business.name}
+          services={services}
+          technicians={technicians}
+        />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white">
-        {upcoming.length === 0 ? (
-          <p className="p-6 text-center text-[var(--grey)]">No upcoming appointments.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--border)]">
-            {upcoming.map((b) => (
-              <li key={b.id} className="flex items-center justify-between gap-4 p-4">
-                <div>
-                  <div className="font-semibold">{b.customerName}</div>
-                  <div className="text-sm text-[var(--grey)]">
-                    {b.service.name}
-                    {user.role === "OWNER" ? ` · ${b.technician.name}` : ""}
-                  </div>
-                </div>
-                <div className="text-right text-sm">
-                  <div className="font-bold">{formatShort(b.startAt, business.timezone)}</div>
-                  <div className="text-[var(--grey)]">{b.reference}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--grey)]">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded" style={{ background: "#c9716b" }} />
+          Confirmed
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded" style={{ background: "#f4b942" }} />
+          Awaiting reschedule confirmation
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-3 w-3 rounded"
+            style={{ background: "rgba(138,118,114,0.3)" }}
+          />
+          Time off
+        </span>
       </div>
-
-      {!business.whatsappNumber && (
-        <p className="mt-6 rounded-xl bg-[var(--blush)] p-4 text-sm text-[var(--brand-dark)]">
-          Tip: add your WhatsApp number in Settings so confirmation and reminder
-          messages can reach customers.
-        </p>
-      )}
     </div>
   );
 }
 
-function Stat({ label, value, suffix }: { label: string; value: number; suffix: string }) {
+function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-5">
-      <div className="text-sm font-semibold uppercase tracking-wider text-[var(--grey)]">
-        {label}
-      </div>
-      <div className="mt-1 font-[family-name:var(--font-fraunces)] text-4xl" style={{ color: "var(--brand)" }}>
+    <div className="rounded-xl border border-[var(--border)] bg-white px-4 py-2 text-center">
+      <div className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--brand)" }}>
         {value}
       </div>
-      <div className="text-sm text-[var(--grey)]">{suffix}</div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-[var(--grey)]">
+        {label}
+      </div>
     </div>
   );
 }

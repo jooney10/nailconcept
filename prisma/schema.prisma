@@ -7,7 +7,9 @@
 // plain strings, validated in the app layer via the constants in src/lib/enums.ts.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" for local dev; the rhel target is the engine Vercel's runtime needs.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -143,6 +145,14 @@ model Booking {
   notes          String   @default("")
   bufferBeforeMin Int     @default(15)
   bufferAfterMin  Int     @default(15)
+
+  // Reschedule flow: when a booking is dragged to a new time and the customer is
+  // asked to confirm, rescheduleState becomes "AWAITING" and the previous time is
+  // kept so it can be reverted. It returns to "NONE" once confirmed.
+  rescheduleState       String    @default("NONE") // NONE | AWAITING
+  previousStartAt       DateTime?
+  previousEndAt         DateTime?
+  rescheduleRequestedAt DateTime?
 
   technician  Technician   @relation(fields: [technicianId], references: [id])
   service     Service      @relation(fields: [serviceId], references: [id])

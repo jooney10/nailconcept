@@ -27,7 +27,7 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl: string }) {
     .toUpperCase();
   return (
     <span
-      className="grid h-14 w-14 place-items-center rounded-full font-[family-name:var(--font-fraunces)] text-lg text-white"
+      className="grid h-14 w-14 place-items-center rounded-full font-[family-name:var(--font-display)] text-lg text-white"
       style={{ background: "var(--brand)" }}
       aria-hidden
     >
@@ -57,12 +57,12 @@ export function AboutSection({
             <div className="grid h-full place-items-center p-8 text-center">
               <div>
                 <div
-                  className="mx-auto grid h-24 w-24 place-items-center rounded-full font-[family-name:var(--font-fraunces)] text-4xl text-white"
+                  className="mx-auto grid h-24 w-24 place-items-center rounded-full font-[family-name:var(--font-display)] text-4xl text-white"
                   style={{ background: "var(--brand)" }}
                 >
                   {business.name.charAt(0)}
                 </div>
-                <p className="mt-4 font-[family-name:var(--font-fraunces)] text-xl">
+                <p className="mt-4 font-[family-name:var(--font-display)] text-xl">
                   @{business.instagram}
                 </p>
                 <p className="text-sm text-[var(--ink-soft)]">
@@ -96,7 +96,7 @@ export function AboutSection({
                   >
                     <Avatar name={t.name} photoUrl={t.photoUrl} />
                     <div>
-                      <div className="font-[family-name:var(--font-fraunces)] text-lg">
+                      <div className="font-[family-name:var(--font-display)] text-lg">
                         {t.name}
                       </div>
                       {t.bio && (

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito_Sans } from "next/font/google";
+import { Bebas_Neue, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { getBusiness } from "@/lib/business";
 
-const fraunces = Fraunces({
+// Display face: Bebas Neue — tall, condensed, all-caps. Bold, fashion-forward.
+const bebas = Bebas_Neue({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-fraunces",
+  weight: ["400"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -41,7 +42,7 @@ export default async function RootLayout({
   } as React.CSSProperties;
 
   return (
-    <html lang="en-GB" className={`${fraunces.variable} ${nunito.variable}`}>
+    <html lang="en-GB" className={`${bebas.variable} ${nunito.variable}`}>
       <body style={brandVars}>{children}</body>
     </html>
   );

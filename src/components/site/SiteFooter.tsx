@@ -8,7 +8,7 @@ export function SiteFooter({ business }: { business: BusinessRecord }) {
       <div className="wrap flex flex-col items-center justify-between gap-4 py-8 text-sm text-[var(--grey)] sm:flex-row">
         <div className="flex items-center gap-2">
           <span
-            className="grid h-7 w-7 place-items-center rounded-full text-white text-sm font-[family-name:var(--font-fraunces)]"
+            className="grid h-7 w-7 place-items-center rounded-full text-white text-sm font-[family-name:var(--font-display)]"
             style={{ background: "var(--brand)" }}
             aria-hidden
           >

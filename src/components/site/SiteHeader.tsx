@@ -6,16 +6,16 @@ export function SiteHeader({ business }: { business: BusinessRecord }) {
   const initial = business.name.trim().charAt(0).toUpperCase() || "A";
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--cream)_88%,transparent)] backdrop-blur-md">
-      <div className="wrap flex h-[68px] items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
+      <div className="wrap flex h-[64px] items-center justify-between gap-2">
+        <Link href="/" className="flex items-center gap-2" aria-label={business.name}>
           <span
-            className="grid h-9 w-9 place-items-center rounded-full text-white font-[family-name:var(--font-fraunces)] text-lg"
+            className="grid h-9 w-9 flex-none place-items-center rounded-full text-white font-[family-name:var(--font-display)] text-lg"
             style={{ background: "var(--brand)" }}
             aria-hidden
           >
             {initial}
           </span>
-          <span className="font-[family-name:var(--font-fraunces)] text-lg font-semibold tracking-tight">
+          <span className="hidden whitespace-nowrap font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight sm:inline">
             {business.name}
           </span>
         </Link>
@@ -38,7 +38,7 @@ export function SiteHeader({ business }: { business: BusinessRecord }) {
           </a>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-2">
           {business.whatsappNumber && (
             <a
               className="btn btn-ghost hidden sm:inline-flex"
@@ -52,7 +52,7 @@ export function SiteHeader({ business }: { business: BusinessRecord }) {
               Message
             </a>
           )}
-          <Link className="btn btn-primary" href="/book">
+          <Link className="btn btn-primary whitespace-nowrap px-4 py-2.5 text-sm sm:px-5" href="/book">
             Book now
           </Link>
         </div>

@@ -40,7 +40,7 @@ export function ServicesSection({ groups }: { groups: Group[] }) {
                     className="surface flex flex-col gap-3 p-5 transition-transform duration-200 hover:-translate-y-1"
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <h4 className="font-[family-name:var(--font-fraunces)] text-xl">
+                      <h4 className="font-[family-name:var(--font-display)] text-xl">
                         {s.name}
                       </h4>
                       <span

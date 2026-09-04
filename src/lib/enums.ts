@@ -24,6 +24,8 @@ export const MESSAGE_TYPES = [
   "REMINDER_24H",
   "REVIEW_REQUEST",
   "CANCELLATION",
+  "RESCHEDULE_REQUEST",
+  "RESCHEDULE_CONFIRMED",
 ] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
@@ -32,6 +34,8 @@ export const MESSAGE_TYPE_LABELS: Record<MessageType, string> = {
   REMINDER_24H: "24-hour reminder",
   REVIEW_REQUEST: "Review request",
   CANCELLATION: "Cancellation notice",
+  RESCHEDULE_REQUEST: "Reschedule request",
+  RESCHEDULE_CONFIRMED: "Reschedule confirmed",
 };
 
 export const MESSAGE_STATUSES = ["STUBBED", "SENT", "FAILED", "SKIPPED"] as const;

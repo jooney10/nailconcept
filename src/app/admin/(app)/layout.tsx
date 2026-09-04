@@ -20,13 +20,13 @@ export default async function AdminAppLayout({
         <div className="flex items-center justify-between p-4 md:block">
           <Link href="/admin" className="flex items-center gap-2.5">
             <span
-              className="grid h-8 w-8 place-items-center rounded-full text-white font-[family-name:var(--font-fraunces)]"
+              className="grid h-8 w-8 place-items-center rounded-full text-white font-[family-name:var(--font-display)]"
               style={{ background: "var(--brand)" }}
               aria-hidden
             >
               {business.name.charAt(0)}
             </span>
-            <span className="font-[family-name:var(--font-fraunces)] font-semibold">
+            <span className="font-[family-name:var(--font-display)] font-semibold">
               {business.name}
             </span>
           </Link>

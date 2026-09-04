@@ -3,7 +3,7 @@
 /* ============================================================
    Abigail Nails — design tokens
    Soft-luxury, editorial nail studio. Blush & rose, warm cream,
-   a serif display paired with a clean humanist sans.
+   a tall condensed display (Bebas Neue) paired with a clean humanist sans.
    Brand colours (--brand, --accent) are injected on <body> from
    the Business record so they stay editable from admin.
    ============================================================ */
@@ -34,7 +34,7 @@
 }
 
 @theme inline {
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-display);
   --font-sans: var(--font-nunito);
   --color-cream: var(--cream);
   --color-blush: var(--blush);
@@ -61,10 +61,10 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display), "Arial Narrow", "Helvetica Neue", sans-serif;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.015em;
   margin: 0;
 }
 
@@ -187,4 +187,55 @@ img {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   * { transition: none !important; animation: none !important; }
+}
+
+/* ---- FullCalendar (dashboard) theming ---- */
+.fc {
+  --fc-border-color: var(--border);
+  --fc-button-bg-color: var(--brand);
+  --fc-button-border-color: var(--brand);
+  --fc-button-hover-bg-color: var(--brand-dark);
+  --fc-button-hover-border-color: var(--brand-dark);
+  --fc-button-active-bg-color: var(--brand-dark);
+  --fc-button-active-border-color: var(--brand-dark);
+  --fc-today-bg-color: color-mix(in srgb, var(--blush) 45%, transparent);
+  --fc-now-indicator-color: var(--rose-dark);
+  --fc-non-business-color: rgba(138, 118, 114, 0.07);
+  font-family: var(--font-nunito), sans-serif;
+}
+.fc .fc-toolbar-title {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  font-size: 1.5rem;
+}
+.fc .fc-button {
+  font-weight: 700;
+  text-transform: capitalize;
+  box-shadow: none !important;
+  border-radius: 8px;
+}
+.fc .fc-col-header-cell-cushion,
+.fc .fc-timegrid-axis-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.fc .fc-event {
+  border-radius: 6px;
+  padding: 1px 3px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  border-width: 1px;
+}
+.fc-event.evt-awaiting {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.28) 0 6px,
+    transparent 6px 12px
+  );
+}
+@media (max-width: 640px) {
+  .fc .fc-toolbar { flex-wrap: wrap; gap: 0.5rem; }
+  .fc .fc-toolbar-title { font-size: 1.15rem; }
 }

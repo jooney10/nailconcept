@@ -44,13 +44,13 @@ export default async function BookPage({
         <div className="wrap flex h-[64px] items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <span
-              className="grid h-8 w-8 place-items-center rounded-full text-white font-[family-name:var(--font-fraunces)]"
+              className="grid h-8 w-8 place-items-center rounded-full text-white font-[family-name:var(--font-display)]"
               style={{ background: "var(--brand)" }}
               aria-hidden
             >
               {business.name.charAt(0)}
             </span>
-            <span className="font-[family-name:var(--font-fraunces)] text-lg font-semibold">
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold">
               {business.name}
             </span>
           </Link>

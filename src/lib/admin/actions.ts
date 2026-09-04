@@ -5,6 +5,9 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, type SessionUser } from "@/lib/admin/session";
 import { sendBookingMessage } from "@/lib/messaging";
+import { getBusiness } from "@/lib/business";
+import { generateReference } from "@/lib/reference";
+import { normalizeUkPhone } from "@/lib/booking-service";
 
 export interface ActionResult {
   ok: boolean;
@@ -90,6 +93,120 @@ export async function markNoShow(id: string): Promise<ActionResult> {
   await prisma.booking.update({ where: { id }, data: { status: "NO_SHOW" } });
   revalidatePath("/admin/bookings");
   return { ok: true, message: "Marked as no-show." };
+}
+
+// ---------------------------------------------------------------------------
+// Reschedule (drag on the calendar)
+// ---------------------------------------------------------------------------
+
+async function loadOwnedBooking(id: string, user: SessionUser) {
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    include: { service: true },
+  });
+  if (!booking) return null;
+  if (user.role !== "OWNER" && booking.technicianId !== user.technicianId) return null;
+  return booking;
+}
+
+/**
+ * Move a booking to a new start time (from a calendar drag). When `notify` is
+ * true the booking enters the AWAITING state and a reschedule request is sent to
+ * the customer; when false it's a silent move (fixing your own schedule).
+ */
+export async function moveBooking(
+  id: string,
+  newStartIso: string,
+  notify: boolean,
+): Promise<ActionResult> {
+  const user = await ensureSession();
+  const booking = await loadOwnedBooking(id, user);
+  if (!booking) return { ok: false, message: "Booking not found." };
+
+  const newStart = new Date(newStartIso);
+  if (Number.isNaN(newStart.getTime())) {
+    return { ok: false, message: "Invalid time." };
+  }
+  const newEnd = new Date(newStart.getTime() + booking.service.durationMin * 60_000);
+
+  await prisma.booking.update({
+    where: { id },
+    data: {
+      previousStartAt: booking.startAt,
+      previousEndAt: booking.endAt,
+      startAt: newStart,
+      endAt: newEnd,
+      rescheduleState: notify ? "AWAITING" : "NONE",
+      rescheduleRequestedAt: notify ? new Date() : null,
+    },
+  });
+
+  if (notify) {
+    try {
+      await sendBookingMessage(id, "RESCHEDULE_REQUEST");
+    } catch (err) {
+      console.error("Reschedule request failed:", err);
+    }
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/bookings");
+  return {
+    ok: true,
+    message: notify ? "Moved — reschedule request sent to customer." : "Booking moved.",
+  };
+}
+
+/** Confirm a pending reschedule (customer said yes, or manual override). */
+export async function confirmReschedule(id: string): Promise<ActionResult> {
+  const user = await ensureSession();
+  const booking = await loadOwnedBooking(id, user);
+  if (!booking) return { ok: false, message: "Booking not found." };
+  if (booking.rescheduleState !== "AWAITING") {
+    return { ok: false, message: "This booking isn't awaiting confirmation." };
+  }
+
+  await prisma.booking.update({
+    where: { id },
+    data: {
+      rescheduleState: "NONE",
+      previousStartAt: null,
+      previousEndAt: null,
+      rescheduleRequestedAt: null,
+    },
+  });
+  try {
+    await sendBookingMessage(id, "RESCHEDULE_CONFIRMED");
+  } catch (err) {
+    console.error("Reschedule confirmation failed:", err);
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/bookings");
+  return { ok: true, message: "Reschedule confirmed." };
+}
+
+/** Revert a pending reschedule back to the original time (customer said no). */
+export async function revertReschedule(id: string): Promise<ActionResult> {
+  const user = await ensureSession();
+  const booking = await loadOwnedBooking(id, user);
+  if (!booking) return { ok: false, message: "Booking not found." };
+  if (!booking.previousStartAt || !booking.previousEndAt) {
+    return { ok: false, message: "No previous time to revert to." };
+  }
+
+  await prisma.booking.update({
+    where: { id },
+    data: {
+      startAt: booking.previousStartAt,
+      endAt: booking.previousEndAt,
+      rescheduleState: "NONE",
+      previousStartAt: null,
+      previousEndAt: null,
+      rescheduleRequestedAt: null,
+    },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/bookings");
+  return { ok: true, message: "Reverted to the original time." };
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +418,117 @@ export async function removeTechnician(id: string): Promise<ActionResult> {
   revalidatePath("/admin/technicians");
   revalidatePath("/");
   return { ok: true, message: "Technician removed." };
+}
+
+// ---------------------------------------------------------------------------
+// Account (any signed-in user changes their own password)
+// ---------------------------------------------------------------------------
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<ActionResult> {
+  const user = await ensureSession();
+  if (newPassword.length < 6) {
+    return { ok: false, message: "New password must be at least 6 characters." };
+  }
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { ok: false, message: "Account not found." };
+
+  const ok = await bcrypt.compare(currentPassword, dbUser.passwordHash);
+  if (!ok) return { ok: false, message: "Your current password is incorrect." };
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  return { ok: true, message: "Password updated." };
+}
+
+// ---------------------------------------------------------------------------
+// Manual booking creation (from the calendar)
+// ---------------------------------------------------------------------------
+
+export interface ManualBookingInput {
+  technicianId: string;
+  serviceId: string;
+  startIso: string;
+  customerName: string;
+  customerPhone: string;
+  notes?: string;
+  notify: boolean;
+}
+
+/** Create a booking by hand (phone/DM booking) from the admin calendar. */
+export async function createManualBooking(
+  input: ManualBookingInput,
+): Promise<ActionResult> {
+  const user = await ensureSession();
+  if (user.role !== "OWNER" && input.technicianId !== user.technicianId) {
+    return { ok: false, message: "You can only add bookings for yourself." };
+  }
+  if (input.customerName.trim().length < 2) {
+    return { ok: false, message: "Please enter the customer's name." };
+  }
+  if (input.customerPhone.replace(/[^\d]/g, "").length < 7) {
+    return { ok: false, message: "Please enter a valid phone number." };
+  }
+
+  const service = await prisma.service.findUnique({ where: { id: input.serviceId } });
+  if (!service) return { ok: false, message: "Service not found." };
+
+  const start = new Date(input.startIso);
+  if (Number.isNaN(start.getTime())) return { ok: false, message: "Invalid time." };
+  const end = new Date(start.getTime() + service.durationMin * 60_000);
+  const business = await getBusiness();
+
+  const booking = await prisma.booking.create({
+    data: {
+      reference: generateReference(),
+      technicianId: input.technicianId,
+      serviceId: service.id,
+      customerName: input.customerName.trim(),
+      customerPhone: normalizeUkPhone(input.customerPhone),
+      notes: (input.notes ?? "").trim(),
+      startAt: start,
+      endAt: end,
+      status: "CONFIRMED",
+      bufferBeforeMin: business.bufferBeforeMin,
+      bufferAfterMin: business.bufferAfterMin,
+    },
+  });
+
+  if (input.notify) {
+    try {
+      await sendBookingMessage(booking.id, "CONFIRMATION");
+    } catch (err) {
+      console.error("Manual booking confirmation failed:", err);
+    }
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/bookings");
+  return { ok: true, message: "Booking added." };
+}
+
+/** Block a period as time off from the calendar (e.g. a personal appointment). */
+export async function blockTime(
+  technicianId: string,
+  startIso: string,
+  endIso: string,
+  reason: string,
+): Promise<ActionResult> {
+  const user = await ensureSession();
+  if (user.role !== "OWNER" && technicianId !== user.technicianId) {
+    return { ok: false, message: "You can only block your own time." };
+  }
+  const startAt = new Date(startIso);
+  const endAt = new Date(endIso);
+  if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || startAt >= endAt) {
+    return { ok: false, message: "Invalid time range." };
+  }
+  await prisma.timeOff.create({
+    data: { technicianId, startAt, endAt, reason: reason.trim() || "Blocked" },
+  });
+  revalidatePath("/admin");
+  return { ok: true, message: "Time blocked." };
 }
 
 // ---------------------------------------------------------------------------

@@ -60,6 +60,20 @@ export function composeMessage(
         `(${booking.service.name}) has been cancelled. ` +
         `Please get in touch to rebook whenever you're ready — I'd love to fit you in. x`
       );
+    case "RESCHEDULE_REQUEST":
+      return (
+        `Hi ${firstName}, I'd like to move your ${booking.service.name} appointment to:\n\n` +
+        `• ${when}\n` +
+        `• With ${booking.technician.name}\n\n` +
+        `Does that work for you? Please reply *YES* to confirm. If not, just let me ` +
+        `know and we'll find a time that suits. Thank you! x`
+      );
+    case "RESCHEDULE_CONFIRMED":
+      return (
+        `Perfect — thank you ${firstName}! 💅 Your ${booking.service.name} appointment ` +
+        `is now confirmed for ${when} with ${booking.technician.name}. See you then! ` +
+        `(Ref: ${booking.reference})`
+      );
   }
 }
 

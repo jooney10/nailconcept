@@ -11,6 +11,7 @@ const ITEMS: { href: string; label: string; icon: string; ownerOnly?: boolean }[
   { href: "/admin/technicians", label: "Technicians", icon: "❋", ownerOnly: true },
   { href: "/admin/messages", label: "Messages", icon: "✉" },
   { href: "/admin/settings", label: "Settings", icon: "⚙", ownerOnly: true },
+  { href: "/admin/account", label: "Account", icon: "◉" },
 ];
 
 export function AdminNav({ isOwner }: { isOwner: boolean }) {

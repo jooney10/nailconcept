@@ -98,7 +98,7 @@ export function Hero({ business }: { business: BusinessRecord }) {
           <div className="relative grid h-full grid-rows-[1fr_auto] gap-3">
             <SwatchVisual />
             <div className="rounded-2xl bg-white/80 px-4 py-3 text-center backdrop-blur">
-              <div className="font-[family-name:var(--font-fraunces)] text-lg">
+              <div className="font-[family-name:var(--font-display)] text-lg">
                 @{business.instagram}
               </div>
               <div className="text-xs text-[var(--grey)]">

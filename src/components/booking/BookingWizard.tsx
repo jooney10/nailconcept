@@ -227,7 +227,7 @@ export function BookingWizard({
               className="surface flex flex-col gap-2 p-5 text-left transition-transform duration-200 hover:-translate-y-1"
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="font-[family-name:var(--font-fraunces)] text-lg">
+                <span className="font-[family-name:var(--font-display)] text-lg">
                   {s.name}
                 </span>
                 <span
@@ -257,7 +257,7 @@ export function BookingWizard({
               onClick={() => chooseTech("any")}
               className="surface p-5 text-left transition-transform duration-200 hover:-translate-y-1"
             >
-              <div className="font-[family-name:var(--font-fraunces)] text-lg">
+              <div className="font-[family-name:var(--font-display)] text-lg">
                 No preference
               </div>
               <div className="text-sm text-[var(--ink-soft)]">
@@ -270,7 +270,7 @@ export function BookingWizard({
                 onClick={() => chooseTech(t.id)}
                 className="surface p-5 text-left transition-transform duration-200 hover:-translate-y-1"
               >
-                <div className="font-[family-name:var(--font-fraunces)] text-lg">{t.name}</div>
+                <div className="font-[family-name:var(--font-display)] text-lg">{t.name}</div>
                 {t.bio && <div className="text-sm text-[var(--ink-soft)]">{t.bio}</div>}
               </button>
             ))}
@@ -352,7 +352,7 @@ export function BookingWizard({
           <div className="surface p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-4">
               <div>
-                <div className="font-[family-name:var(--font-fraunces)] text-xl">
+                <div className="font-[family-name:var(--font-display)] text-xl">
                   {service.name}
                 </div>
                 <div className="text-sm text-[var(--ink-soft)]">
