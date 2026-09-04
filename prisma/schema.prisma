@@ -7,9 +7,10 @@
 // plain strings, validated in the app layer via the constants in src/lib/enums.ts.
 
 generator client {
-  provider      = "prisma-client-js"
-  // "native" for local dev; the rhel target is the engine Vercel's runtime needs.
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider = "prisma-client-js"
+  // "native" for local dev; the rhel targets cover Vercel's serverless runtimes
+  // (Amazon Linux 2 = 1.0.x, Amazon Linux 2023 = 3.0.x) so the engine always matches.
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
